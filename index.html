@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#16181d">
+<title>PC Keyboard</title>
+<style>
+  :root {
+    --bg: #16181d;
+    --panel: #1e2126;
+    --key: #2a2e35;
+    --key-active: #d99a2b;
+    --text: #e8e9eb;
+    --muted: #a7adb6;
+    --accent: #2f6fed;
+    --danger: #b3403c;
+    --border: #343942;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font-size: 15px;
+    line-height: 1.4;
+    -webkit-tap-highlight-color: transparent;
+  }
+  main { max-width: 640px; margin: 0 auto; padding: 12px 12px 32px; }
+  header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  h1 { font-size: 20px; font-weight: 700; margin: 4px 0; }
+  h2 { font-size: 13px; font-weight: 600; color: var(--muted); margin: 0 0 8px; letter-spacing: .02em; }
+  .status {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 13px; font-weight: 600;
+    background: var(--panel); border: 1px solid var(--border);
+    padding: 5px 12px; border-radius: 999px; white-space: nowrap;
+  }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: #6b7280; }
+  .status.on .dot { background: #3fa34d; }
+  .server-url { font-family: ui-monospace, Consolas, monospace; font-size: 12px; color: var(--muted); margin: 2px 0 10px; word-break: break-all; }
+  section.panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px;
+    margin-bottom: 12px;
+  }
+  textarea {
+    width: 100%; min-height: 84px; resize: vertical;
+    background: #101216; color: var(--text);
+    border: 1px solid var(--border); border-radius: 10px;
+    padding: 10px; font-size: 16px; font-family: inherit;
+  }
+  textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .row { display: flex; gap: 8px; margin-top: 8px; }
+  .row.wrap { flex-wrap: wrap; }
+  button {
+    font: inherit; color: var(--text);
+    background: var(--key); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 12px; font-weight: 600;
+    cursor: pointer; touch-action: manipulation; user-select: none;
+  }
+  button:active { filter: brightness(1.25); }
+  button.primary { background: var(--accent); border-color: var(--accent); flex: 1; }
+  button.ghost { background: transparent; }
+  button.mod[aria-pressed="true"] { background: var(--key-active); border-color: var(--key-active); color: #1a1a1a; }
+  .grid-keys { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .grid-arrows { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; max-width: 280px; margin: 0 auto; }
+  .grid-arrows .spacer { visibility: hidden; }
+  .fn-strip { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
+  .fn-strip button { flex: 0 0 auto; min-width: 52px; }
+  .grid-combos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .grid-combos button { font-size: 13px; padding: 9px 6px; }
+  label.live { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; margin-top: 8px; }
+  input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--accent); }
+  input.token {
+    width: 100%; background: #101216; color: var(--text);
+    border: 1px solid var(--border); border-radius: 8px;
+    padding: 9px 10px; font: inherit; font-size: 14px;
+  }
+  .hint { font-size: 12px; color: var(--muted); margin: 6px 0 0; }
+  #toast {
+    position: fixed; left: 12px; right: 12px; bottom: 16px;
+    max-width: 616px; margin: 0 auto;
+    background: var(--danger); color: #fff; font-weight: 600;
+    border-radius: 10px; padding: 12px 14px; font-size: 14px;
+    opacity: 0; pointer-events: none; transition: opacity .2s ease;
+  }
+  #toast.show { opacity: 1; }
+  @media (prefers-reduced-motion: reduce) {
+    #toast { transition: none; }
+  }
+  footer { text-align: center; color: var(--muted); font-size: 12px; margin-top: 4px; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>PC Keyboard</h1>
+    <span class="status" id="status"><span class="dot"></span><span id="statusText">Connecting…</span></span>
+  </header>
+  <p class="server-url" id="serverUrl"></p>
+
+  <section class="panel">
+    <h2>Type text</h2>
+    <textarea id="text" placeholder="Type here, then Send — or enable live typing below." autocomplete="off" autocapitalize="off" spellcheck="false"></textarea>
+    <div class="row">
+      <button class="primary" id="send" type="button">Send to PC</button>
+      <button class="ghost" id="clearText" type="button">Clear</button>
+    </div>
+    <label class="live"><input type="checkbox" id="live"> Live typing (send each keystroke)</label>
+    <p class="hint">Tip: Ctrl+Enter inside the box sends the text too.</p>
+  </section>
+
+  <section class="panel">
+    <h2>Modifiers (tap to hold for next key)</h2>
+    <div class="row wrap" id="mods">
+      <button class="mod" type="button" data-mod="ctrl" aria-pressed="false">Ctrl</button>
+      <button class="mod" type="button" data-mod="alt" aria-pressed="false">Alt</button>
+      <button class="mod" type="button" data-mod="shift" aria-pressed="false">Shift</button>
+      <button class="mod" type="button" data-mod="win" aria-pressed="false">Win</button>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Special keys</h2>
+    <div class="grid-keys">
+      <button type="button" data-key="esc">Esc</button>
+      <button type="button" data-key="tab">Tab</button>
+      <button type="button" data-key="backspace">⌫ Back</button>
+      <button type="button" data-key="enter">Enter ⏎</button>
+      <button type="button" data-key="delete">Del</button>
+      <button type="button" data-key="insert">Ins</button>
+      <button type="button" data-key="home">Home</button>
+      <button type="button" data-key="end">End</button>
+      <button type="button" data-key="pageup">PgUp</button>
+      <button type="button" data-key="pagedown">PgDn</button>
+      <button type="button" data-key="printscreen">PrtSc</button>
+      <button type="button" data-key="space">Space</button>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Arrow keys</h2>
+    <div class="grid-arrows">
+      <span class="spacer"></span>
+      <button type="button" data-key="up">↑</button>
+      <span class="spacer"></span>
+      <button type="button" data-key="left">←</button>
+      <button type="button" data-key="down">↓</button>
+      <button type="button" data-key="right">→</button>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Function keys</h2>
+    <div class="fn-strip" id="fnRow"></div>
+  </section>
+
+  <section class="panel">
+    <h2>Shortcuts</h2>
+    <div class="grid-combos" id="combos"></div>
+  </section>
+
+  <section class="panel">
+    <h2>Media</h2>
+    <div class="row wrap">
+      <button type="button" data-key="volumedown">Vol −</button>
+      <button type="button" data-key="volumeup">Vol +</button>
+      <button type="button" data-key="volumemute">Mute</button>
+      <button type="button" data-key="playpause">Play/Pause</button>
+      <button type="button" data-key="mediaprev">Prev</button>
+      <button type="button" data-key="medianext">Next</button>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Server token (only if started with --token)</h2>
+    <input class="token" id="token" type="password" placeholder="Optional secret" autocomplete="off">
+  </section>
+
+  <footer>Keep USB tethering on while using this page.</footer>
+</main>
+<div id="toast" role="alert"></div>
+
+<script>
+(function () {
+  "use strict";
+  var statusEl = document.getElementById("status");
+  var statusText = document.getElementById("statusText");
+  var serverUrl = document.getElementById("serverUrl");
+  var textArea = document.getElementById("text");
+  var liveBox = document.getElementById("live");
+  var tokenInput = document.getElementById("token");
+  var toast = document.getElementById("toast");
+  var toastTimer = null;
+  var activeMods = [];
+  var lastLiveValue = "";
+
+  serverUrl.textContent = "Server: " + location.protocol + "//" + location.host;
+  try { tokenInput.value = localStorage.getItem("kb_token") || ""; } catch (e) {}
+  tokenInput.addEventListener("change", function () {
+    try { localStorage.setItem("kb_token", tokenInput.value); } catch (e) {}
+    ping();
+  });
+
+  function showError(msg) {
+    toast.textContent = msg;
+    toast.classList.add("show");
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { toast.classList.remove("show"); }, 3500);
+  }
+
+  function headers() {
+    var h = { "Content-Type": "application/json" };
+    if (tokenInput.value) h["X-Token"] = tokenInput.value;
+    return h;
+  }
+
+  function post(path, body) {
+    return fetch(path, { method: "POST", headers: headers(), body: JSON.stringify(body) })
+      .then(function (res) { return res.json().then(function (data) { return { res: res, data: data }; }); })
+      .then(function (out) {
+        if (!out.res.ok || !out.data.ok) throw new Error((out.data && out.data.error) || ("Request failed (" + out.res.status + ")"));
+        return out.data;
+      });
+  }
+
+  function ping() {
+    fetch("/api/ping", { cache: "no-store" })
+      .then(function (res) {
+        if (!res.ok) throw new Error("bad status");
+        return res.json();
+      })
+      .then(function () {
+        statusEl.classList.add("on");
+        statusText.textContent = "Connected";
+      })
+      .catch(function () {
+        statusEl.classList.remove("on");
+        statusText.textContent = "Disconnected";
+      });
+  }
+
+  function clearMods() {
+    activeMods = [];
+    document.querySelectorAll("#mods .mod").forEach(function (b) { b.setAttribute("aria-pressed", "false"); });
+  }
+
+  document.querySelectorAll("#mods .mod").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var mod = btn.getAttribute("data-mod");
+      var i = activeMods.indexOf(mod);
+      if (i >= 0) { activeMods.splice(i, 1); btn.setAttribute("aria-pressed", "false"); }
+      else { activeMods.push(mod); btn.setAttribute("aria-pressed", "true"); }
+    });
+  });
+
+  function sendKey(key) {
+    var mods = activeMods.slice();
+    post("/api/key", { key: key, modifiers: mods }).then(clearMods).catch(showError);
+  }
+
+  document.querySelectorAll("[data-key]").forEach(function (btn) {
+    btn.addEventListener("click", function () { sendKey(btn.getAttribute("data-key")); });
+  });
+
+  // Function keys F1..F12
+  var fnRow = document.getElementById("fnRow");
+  for (var f = 1; f <= 12; f++) {
+    (function (n) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.textContent = "F" + n;
+      b.addEventListener("click", function () { sendKey("f" + n); });
+      fnRow.appendChild(b);
+    })(f);
+  }
+
+  // Shortcut combos
+  var combos = [
+    ["Copy", ["ctrl", "c"]], ["Cut", ["ctrl", "x"]], ["Paste", ["ctrl", "v"]],
+    ["Undo", ["ctrl", "z"]], ["Redo", ["ctrl", "y"]], ["Select all", ["ctrl", "a"]],
+    ["Save", ["ctrl", "s"]], ["Find", ["ctrl", "f"]], ["Close tab", ["ctrl", "w"]],
+    ["Switch app", ["alt", "tab"]], ["Close app", ["alt", "f4"]], ["Desktop", ["win", "d"]],
+    ["Lock PC", ["win", "l"]], ["Task mgr", ["ctrl", "shift", "esc"]], ["Run", ["win", "r"]]
+  ];
+  var comboBox = document.getElementById("combos");
+  combos.forEach(function (c) {
+    var b = document.createElement("button");
+    b.type = "button";
+    b.textContent = c[0];
+    b.title = c[1].join("+");
+    b.addEventListener("click", function () {
+      post("/api/hotkey", { keys: c[1] }).catch(showError);
+    });
+    comboBox.appendChild(b);
+  });
+
+  // Text sending
+  document.getElementById("send").addEventListener("click", function () {
+    var text = textArea.value;
+    if (!text) return;
+    var mods = activeMods.slice();
+    if (mods.length) {
+      // With modifiers held, send as individual key taps instead of plain text.
+      post("/api/hotkey", { keys: mods.concat([text]) }).catch(showError);
+      return;
+    }
+    post("/api/type", { text: text }).then(function () {
+      textArea.value = "";
+      lastLiveValue = "";
+    }).catch(showError);
+  });
+  document.getElementById("clearText").addEventListener("click", function () {
+    textArea.value = "";
+    lastLiveValue = "";
+  });
+  textArea.addEventListener("keydown", function (e) {
+    if (e.key === "Enter" && e.ctrlKey) {
+      e.preventDefault();
+      document.getElementById("send").click();
+    }
+  });
+
+  // Live typing: send only the diff.
+  liveBox.addEventListener("change", function () { lastLiveValue = textArea.value; });
+  textArea.addEventListener("input", function () {
+    if (!liveBox.checked) return;
+    var cur = textArea.value;
+    var prev = lastLiveValue;
+    lastLiveValue = cur;
+    var i = 0;
+    while (i < prev.length && i < cur.length && prev[i] === cur[i]) i++;
+    var removed = prev.length - i;
+    var added = cur.slice(i);
+    var chain = Promise.resolve();
+    for (var r = 0; r < removed; r++) {
+      chain = chain.then(function () { return post("/api/key", { key: "backspace" }); });
+    }
+    if (added) chain = chain.then(function () { return post("/api/type", { text: added }); });
+    chain.catch(showError);
+  });
+
+  ping();
+  setInterval(ping, 5000);
+})();
+</script>
+</body>
+</html>
