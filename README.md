@@ -1,5 +1,7 @@
 # Phone as Keyboard (via USB Tethering)
 
+> If this project helps you, consider supporting me: [ko-fi.com/samuelaranez](https://ko-fi.com/samuelaranez)
+
 Use your Android phone's browser as a wireless keyboard for your PC — over the
 USB cable, no app install needed on the phone.
 
