@@ -77,3 +77,6 @@ python server.py --token mysecret123    :: require a secret (enter it on the pho
 Anyone who can reach the server URL can type on your PC. USB tethering only
 exposes it to your phone, but on shared/public networks use `--token` and stop
 the server when done.
+
+---
+*This project was built with Muse Code, an agentic coding assistant.*
